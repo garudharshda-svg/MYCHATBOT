@@ -25,11 +25,11 @@ body {
     background:
         radial-gradient(
             circle at 20% 80%,
-            rgba(89, 46, 180, 0.18),
+            rgba(18, 140, 36, 0.18),
             transparent 35%
         ),
 
-        #050713;
+    black;
 }
 
 
