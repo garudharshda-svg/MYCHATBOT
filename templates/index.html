@@ -19,6 +19,10 @@
 
             <div class="sidebar-header">
                 <h2>MyChatbot</h2>
+
+                {% if fullname %}
+                    <p>Hi, {{ fullname }}</p>
+                {% endif %}
             </div>
 
             <button class="new-chat-btn">
@@ -30,29 +34,18 @@
 
                 <p class="history-title">History</p>
 
-                <div class="history-item">
-                    <span>💬</span>
-                    <span>My first conversation</span>
-                </div>
+                <div id="history-list"></div>
 
-                <div class="history-item">
-                    <span>💬</span>
-                    <span>Learning Python</span>
-                </div>
+            </div>
 
-                <div class="history-item">
-                    <span>💬</span>
-                    <span>What is AI?</span>
-                </div>
-                </div>
             <div class="sidebar-bottom">
 
                 <a href="{{ url_for('signin') }}" class="auth-btn signin-btn">
-                Sign In
-                 </a>
+                    Sign In
+                </a>
 
                 <a href="{{ url_for('signup') }}" class="auth-btn signup-btn">
-                 Sign Up
+                    Sign Up
                 </a>
 
             </div>
@@ -106,7 +99,9 @@
         </main>
 
     </div>
- <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
 </body>
 
 </html>

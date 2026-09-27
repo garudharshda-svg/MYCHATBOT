@@ -138,7 +138,9 @@ def init_db():
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    fullname = session.get("fullname")
+
+    return render_template("index.html", fullname=fullname)
 
 
 # ---------------------------------
@@ -228,7 +230,13 @@ def signin():
         # Check entered password against hashed password
         if check_password_hash(stored_password, password):
 
-            session["user_id"] = user[0] #user session
+            session["user_id"] = user[0]
+            session["fullname"] = user[1] #user session
+            #print("LOGGED IN USER:", session["fullname"])
+            fullname = session.get("fullname")
+
+            print("HOME USER:", fullname)
+
 
 
             # Successful signin -> go to index.html
@@ -277,11 +285,27 @@ def chat():
             INSERT INTO messages (conversation_id, role, content)
             VALUES (?, ?, ?)
         """, (conversation_id, "user", user_message))
+        fullname = session.get("fullname")
+        prompt = f"""
+        The user's name is {fullname}.
+        Do not mention the user's name unless:
+        1. The user asks what their name is.
+        2. The user directly asks you to use their name.
+        3. Using their name is genuinely necessary for the response.
+
+       Otherwise, answer the user's message normally without mentioning their name.
+
+
+
+        User's message:
+       {user_message}
+"""
 
         response = client.models.generate_content(
             model="gemini-3.6-flash",
-            contents=user_message
-        )
+            contents=prompt
+)
+        
 
         cursor.execute("""
             INSERT INTO messages (conversation_id, role, content)
@@ -301,6 +325,35 @@ def chat():
             "error": "Something went wrong while contacting Gemini."
         }), 500
 
+
+#kepping track of history
+@app.route("/history")
+def history():
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({
+            "error": "Please sign in first."
+        }), 401
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, title, created_at
+        FROM conversations
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    """, (user_id,))
+
+    conversations = cursor.fetchall()
+
+    conn.close()
+
+    return jsonify({
+        "conversations": conversations
+    })
 # ---------------------------------
 # FORGOT PASSWORD
 # ---------------------------------

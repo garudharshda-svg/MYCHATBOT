@@ -155,3 +155,37 @@ function newChat() {
     // Put cursor back in the message box
     messageInput.focus();
 }
+async function loadHistory() {
+
+    try {
+
+        const response = await fetch("/history");
+
+        const data = await response.json();
+
+        const historyList = document.getElementById("history-list");
+
+historyList.innerHTML = "";
+
+data.conversations.forEach(function(conversation) {
+
+    const historyItem = document.createElement("div");
+
+    historyItem.classList.add("history-item");
+
+    historyItem.innerHTML = `
+        <span>💬</span>
+        <span>${conversation[1]}</span>
+    `;
+
+    historyList.appendChild(historyItem);
+});
+
+    } catch (error) {
+
+        console.error("Error loading chat history:", error);
+
+    }
+}
+
+loadHistory();
