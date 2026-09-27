@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify,session
 import sqlite3
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,6 +21,7 @@ load_dotenv()
 # ---------------------------------
 
 app = Flask(__name__)
+app.secret_key = "my-secret-key"
 
 DATABASE = "users.db"
 
@@ -101,6 +102,26 @@ def init_db():
             token TEXT UNIQUE NOT NULL,
             expires_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    #chat history
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (conversation_id) REFERENCES conversations(id)
         )
     """)
 
@@ -207,6 +228,9 @@ def signin():
         # Check entered password against hashed password
         if check_password_hash(stored_password, password):
 
+            session["user_id"] = user[0] #user session
+
+
             # Successful signin -> go to index.html
             return redirect(url_for("home"))
 
@@ -224,6 +248,12 @@ def chat():
     data = request.get_json()
 
     user_message = data.get("message", "").strip()
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({
+        "error": "Please sign in first."
+    }), 401
 
     # Don't send an empty message to Gemini
     if not user_message:
@@ -231,13 +261,34 @@ def chat():
             "error": "Message cannot be empty."
         }), 400
 
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO conversations (user_id, title)
+        VALUES (?, ?)
+    """, (user_id, user_message[:30]))
+
+    conversation_id = cursor.lastrowid
+
     try:
+
+        cursor.execute("""
+            INSERT INTO messages (conversation_id, role, content)
+            VALUES (?, ?, ?)
+        """, (conversation_id, "user", user_message))
 
         response = client.models.generate_content(
             model="gemini-3.6-flash",
             contents=user_message
         )
 
+        cursor.execute("""
+            INSERT INTO messages (conversation_id, role, content)
+            VALUES (?, ?, ?)
+        """, (conversation_id, "assistant", response.text))
+        conn.commit()
+        conn.close()
         return jsonify({
             "response": response.text
         })
